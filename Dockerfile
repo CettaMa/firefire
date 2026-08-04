@@ -1,0 +1,36 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Non-buffered python output untuk log langsung terlihat di `docker logs`
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    DEVICE=cpu \
+    MODEL_VARIANT=vj
+
+# System dependencies untuk OpenCV & video processing (ffmpeg) + curl untuk healthcheck
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 \
+    libglib2.0-0 \
+    libgomp1 \
+    ffmpeg \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install PyTorch CPU-only versi hemat ukuran (~300MB vs ~2.5GB versi CUDA)
+RUN pip install --no-cache-dir torch==2.4.1 torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cpu
+
+# Install dependensi aplikasi sisanya
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy kode aplikasi
+COPY app.py model.py ./
+
+EXPOSE 8000
+
+# Healthcheck untuk memastikan container siap melayani request
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

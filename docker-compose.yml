@@ -1,0 +1,13 @@
+services:
+  yawn-detection:
+    build: .
+    container_name: transtrack-yawn-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./model_weights:/app/model_weights
+    environment:
+      - DEVICE=cpu
+      - MODEL_VARIANT=vj
+      - OMP_NUM_THREADS=2
+    restart: unless-stopped

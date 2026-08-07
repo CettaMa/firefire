@@ -24,6 +24,7 @@ import requests
 import urllib3
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from model import MODEL_VARIANTS, DEFAULT_MODEL_VARIANT, DEVICE, get_detector
@@ -109,7 +110,16 @@ def root():
         "status": "ok",
         "health_check": "/health",
         "docs": "/docs",
+        "tester_page": "/tester"
     }
+
+@app.get("/tester")
+def tester_page():
+    """Melayani file index.html sebagai landing page testing API."""
+    import os
+    if os.path.exists("index.html"):
+        return FileResponse("index.html")
+    return {"error": "index.html tidak ditemukan"}
 
 
 @app.get("/health")

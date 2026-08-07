@@ -196,7 +196,7 @@
     <form id="api-form">
       <div class="form-group">
         <label for="url">API Endpoint</label>
-        <input type="url" id="url" name="url" value="http://localhost:8000/predict" required>
+        <input type="url" id="url" name="url" required>
       </div>
       
       <div class="form-group">
@@ -244,6 +244,10 @@
     const resultStatus = document.getElementById('result-status');
     const resultJson = document.getElementById('result-json');
     const timeInput = document.getElementById('time');
+    const urlInput = document.getElementById('url');
+    
+    // Set default API URL automatically based on the current host
+    urlInput.value = window.location.origin + '/predict';
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();

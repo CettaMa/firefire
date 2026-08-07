@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TransTrack API Tester</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+    :root {
+      /* Palette */
+      --primary-orange: #ff6b00;
+      --primary-orange-hover: #e56000;
+      --bg-grey: #f4f5f7;
+      --surface-grey: #ffffff;
+      --text-main: #2d3136;
+      --text-muted: #757a82;
+      --border-grey: #e2e4e8;
+      --border-focus: rgba(255, 107, 0, 0.4);
+      --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-grey);
+      font-family: var(--font-family);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      box-sizing: border-box;
+      padding: 2rem 1rem;
+    }
+
+    main {
+      width: 100%;
+      max-width: 520px;
+      background: var(--surface-grey);
+      padding: 2.5rem;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.06);
+      box-sizing: border-box;
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 1.6rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 0.5rem;
+    }
+    
+    p.subtitle {
+      color: var(--text-muted);
+      margin-bottom: 2rem;
+      margin-top: 0;
+      line-height: 1.5;
+      font-size: 0.95rem;
+    }
+
+    .form-group {
+      margin-block-end: 1.25rem;
+      display: flex;
+      flex-direction: column;
+    }
+
+    label {
+      font-weight: 500;
+      margin-bottom: 0.4rem;
+      font-size: 0.85rem;
+      color: var(--text-main);
+    }
+
+    input, select {
+      font-family: var(--font-family);
+      font-size: 0.95rem;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border-grey);
+      border-radius: 10px;
+      background-color: var(--surface-grey);
+      transition: all 0.2s ease;
+      min-height: 48px;
+      box-sizing: border-box;
+      color: var(--text-main);
+    }
+
+    input:focus-visible, select:focus-visible {
+      outline: none;
+      border-color: var(--primary-orange);
+      box-shadow: 0 0 0 4px var(--border-focus);
+    }
+    
+    input::placeholder {
+      color: #a0a4ab;
+    }
+
+    .flex-row {
+      display: flex;
+      gap: 1rem;
+    }
+    .flex-row > div {
+      flex: 1;
+    }
+
+    button {
+      background-color: var(--primary-orange);
+      color: white;
+      font-size: 1rem;
+      font-weight: 600;
+      padding: 1rem;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      width: 100%;
+      min-height: 52px;
+      margin-top: 1rem;
+    }
+
+    button:hover:not(:disabled) {
+      background-color: var(--primary-orange-hover);
+      transform: translateY(-1px);
+    }
+    
+    button:disabled {
+      background-color: #d1d5db;
+      color: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    #result-container {
+      margin-top: 2rem;
+      padding: 1.5rem;
+      border-radius: 12px;
+      background-color: var(--bg-grey);
+      border: 1px solid var(--border-grey);
+      animation: fadeIn 0.4s ease forwards;
+    }
+    
+    #result-container.hidden {
+      display: none;
+    }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-size: 0.85rem;
+      color: var(--text-main);
+      background: transparent;
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 0.35rem 0.85rem;
+      border-radius: 99px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    .status-success {
+      background-color: #def7ec;
+      color: #03543f;
+      border: 1px solid #31c48d;
+    }
+    .status-error {
+      background-color: #fde8e8;
+      color: #9b1c1c;
+      border: 1px solid #f8b4b4;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @media (max-width: 480px) {
+      .flex-row {
+        flex-direction: column;
+        gap: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <main>
+    <h1>API Tester</h1>
+    <p class="subtitle">Antarmuka minimalis untuk menguji model Yawn Detection Anda secara langsung.</p>
+    
+    <form id="api-form">
+      <div class="form-group">
+        <label for="url">API Endpoint</label>
+        <input type="url" id="url" name="url" value="http://localhost:8000/predict" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="id">Request ID</label>
+        <input type="text" id="id" name="id" value="test-req-001" required>
+      </div>
+
+      <div class="form-group">
+        <label for="dms_video_url">URL Video DMS</label>
+        <input type="url" id="dms_video_url" name="dms_video_url" placeholder="https://domain.com/video.mp4" required>
+      </div>
+
+      <div class="flex-row">
+        <div class="form-group">
+          <label for="imei">Device IMEI</label>
+          <input type="text" id="imei" name="imei" value="860123456789012" required inputmode="numeric" pattern="\d+">
+        </div>
+        <div class="form-group">
+          <label for="model">Varian Model</label>
+          <select id="model" name="model">
+            <option value="">Auto (Default)</option>
+            <option value="yolov8n">yolov8n (Nano)</option>
+            <option value="yolov8s">yolov8s (Small)</option>
+          </select>
+        </div>
+      </div>
+      
+      <!-- hidden input for required payload fields -->
+      <input type="hidden" id="time" name="time" value="">
+      <input type="hidden" id="alarm" name="alarm" value="yawn">
+
+      <button type="submit" id="submit-btn">Jalankan Prediksi</button>
+    </form>
+
+    <div id="result-container" class="hidden">
+      <div id="result-status" class="status-badge"></div>
+      <pre id="result-json"></pre>
+    </div>
+  </main>
+
+  <script>
+    const form = document.getElementById('api-form');
+    const submitBtn = document.getElementById('submit-btn');
+    const resultContainer = document.getElementById('result-container');
+    const resultStatus = document.getElementById('result-status');
+    const resultJson = document.getElementById('result-json');
+    const timeInput = document.getElementById('time');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      // Update time dynamically
+      timeInput.value = new Date().toISOString();
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Memproses...';
+      resultContainer.classList.add('hidden');
+      
+      const formData = new FormData(form);
+      const url = formData.get('url');
+      
+      const payload = {
+        id: formData.get('id'),
+        imei: formData.get('imei'),
+        time: formData.get('time'),
+        alarm: formData.get('alarm'),
+        dms_video_url: formData.get('dms_video_url')
+      };
+      
+      if (formData.get('model')) {
+        payload.model = formData.get('model');
+      }
+
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        
+        resultContainer.classList.remove('hidden');
+        resultStatus.textContent = response.ok ? 'Sukses' : 'Error';
+        resultStatus.className = 'status-badge ' + (response.ok ? 'status-success' : 'status-error');
+        resultJson.textContent = JSON.stringify(data, null, 2);
+
+      } catch (err) {
+        resultContainer.classList.remove('hidden');
+        resultStatus.textContent = 'Network / CORS Error';
+        resultStatus.className = 'status-badge status-error';
+        resultJson.textContent = 'Pastikan server FastAPI berjalan di ' + url + '\n\nError Message: ' + err.message;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Jalankan Prediksi';
+      }
+    });
+  </script>
+</body>
+</html>

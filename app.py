@@ -23,6 +23,7 @@ from typing import Optional
 import requests
 import urllib3
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from model import MODEL_VARIANTS, DEFAULT_MODEL_VARIANT, DEVICE, get_detector
@@ -31,6 +32,15 @@ from model import MODEL_VARIANTS, DEFAULT_MODEL_VARIANT, DEVICE, get_detector
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = FastAPI(title="TransTrack Yawn Detection API", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 
 # ---------------------------------------------------------------------------

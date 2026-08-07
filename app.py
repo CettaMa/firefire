@@ -117,9 +117,11 @@ def root():
 def tester_page():
     """Melayani file index.html sebagai landing page testing API."""
     import os
-    if os.path.exists("index.html"):
-        return FileResponse("index.html")
-    return {"error": "index.html tidak ditemukan"}
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    html_path = os.path.join(base_dir, "index.html")
+    if os.path.exists(html_path):
+        return FileResponse(html_path)
+    return {"error": "index.html tidak ditemukan di path: " + html_path}
 
 
 @app.get("/health")

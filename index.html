@@ -3,144 +3,293 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TransTrack API Tester</title>
+  <title>TransTrack API Tester - Premium</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
 
     :root {
-      /* Palette */
-      --primary-orange: #ff6b00;
-      --primary-orange-hover: #e56000;
-      --bg-grey: #f4f5f7;
-      --surface-grey: #ffffff;
-      --text-main: #2d3136;
-      --text-muted: #757a82;
-      --border-grey: #e2e4e8;
-      --border-focus: rgba(255, 107, 0, 0.4);
-      --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      --primary: #ff6b00;
+      --primary-hover: #ff8533;
+      --primary-glow: rgba(255, 107, 0, 0.4);
+      --bg-dark: #0f1115;
+      --surface-grey: rgba(30, 33, 40, 0.6);
+      --border-grey: rgba(255, 255, 255, 0.08);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --font-family: 'Outfit', system-ui, sans-serif;
     }
-    
-    body {
+
+    * {
+      box-sizing: border-box;
       margin: 0;
       padding: 0;
-      background-color: var(--bg-grey);
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 15% 50%, rgba(255, 107, 0, 0.08), transparent 25%),
+        radial-gradient(circle at 85% 30%, rgba(255, 107, 0, 0.05), transparent 25%);
       font-family: var(--font-family);
       color: var(--text-main);
+      min-height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
-      min-height: 100vh;
-      box-sizing: border-box;
       padding: 2rem 1rem;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Ambient animated background orb */
+    .ambient-orb {
+      position: fixed;
+      width: 40vw;
+      height: 40vw;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,107,0,0.15) 0%, rgba(255,107,0,0) 70%);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: -1;
+      filter: blur(80px);
+      animation: pulseOrb 8s ease-in-out infinite alternate;
+    }
+
+    @keyframes pulseOrb {
+      0% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+      100% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.5; }
     }
 
     main {
       width: 100%;
-      max-width: 520px;
+      max-width: 680px;
       background: var(--surface-grey);
-      padding: 2.5rem;
-      border-radius: 16px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.06);
-      box-sizing: border-box;
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--border-grey);
+      padding: 3rem;
+      border-radius: 24px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      position: relative;
+      overflow: hidden;
+      transform: translateY(20px);
+      opacity: 0;
+      animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes slideUp {
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Glowing accent line at the top of the card */
+    main::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--primary), transparent);
+      opacity: 0.7;
+    }
+
+    header {
+      margin-bottom: 2.5rem;
+      text-align: center;
     }
 
     h1 {
-      margin-top: 0;
-      font-size: 1.6rem;
-      font-weight: 600;
-      color: var(--text-main);
-      margin-bottom: 0.5rem;
+      font-size: 2.2rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.75rem;
+      background: linear-gradient(135deg, #fff 0%, #a0a4ab 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
-    
+
     p.subtitle {
       color: var(--text-muted);
-      margin-bottom: 2rem;
-      margin-top: 0;
-      line-height: 1.5;
-      font-size: 0.95rem;
+      font-size: 1.05rem;
+      font-weight: 300;
+      line-height: 1.6;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem 1.5rem;
     }
 
     .form-group {
-      margin-block-end: 1.25rem;
       display: flex;
       flex-direction: column;
+    }
+    
+    .form-group.full-width {
+      grid-column: 1 / -1;
     }
 
     label {
       font-weight: 500;
-      margin-bottom: 0.4rem;
       font-size: 0.85rem;
-      color: var(--text-main);
+      color: #cbd5e1;
+      margin-bottom: 0.5rem;
+      letter-spacing: 0.02em;
     }
 
     input, select {
       font-family: var(--font-family);
       font-size: 0.95rem;
-      padding: 0.75rem 1rem;
+      padding: 0.85rem 1.2rem;
       border: 1px solid var(--border-grey);
-      border-radius: 10px;
-      background-color: var(--surface-grey);
-      transition: all 0.2s ease;
-      min-height: 48px;
-      box-sizing: border-box;
+      border-radius: 12px;
+      background-color: rgba(0, 0, 0, 0.2);
       color: var(--text-main);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      width: 100%;
+      height: 52px;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Modern select dropdown arrow styling */
+    select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2.5 4.5L6 8L9.5 4.5' stroke='%239CA3AF' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 1.2rem center;
+      padding-right: 2.5rem;
     }
 
     input:focus-visible, select:focus-visible {
       outline: none;
-      border-color: var(--primary-orange);
-      box-shadow: 0 0 0 4px var(--border-focus);
-    }
-    
-    input::placeholder {
-      color: #a0a4ab;
-    }
-
-    .flex-row {
-      display: flex;
-      gap: 1rem;
-    }
-    .flex-row > div {
-      flex: 1;
-    }
-
-    button {
-      background-color: var(--primary-orange);
-      color: white;
-      font-size: 1rem;
-      font-weight: 600;
-      padding: 1rem;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      width: 100%;
-      min-height: 52px;
-      margin-top: 1rem;
-    }
-
-    button:hover:not(:disabled) {
-      background-color: var(--primary-orange-hover);
+      border-color: var(--primary);
+      background-color: rgba(255, 107, 0, 0.03);
+      box-shadow: 0 0 0 4px var(--primary-glow), inset 0 2px 4px rgba(0, 0, 0, 0.1);
       transform: translateY(-1px);
     }
     
+    input::placeholder {
+      color: #4b5563;
+    }
+    
+    /* Style the select options for better visibility on some OS */
+    option {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+    }
+
+    button {
+      background: linear-gradient(135deg, var(--primary) 0%, #e65c00 100%);
+      color: white;
+      font-size: 1.05rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      padding: 0;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      width: 100%;
+      height: 56px;
+      margin-top: 1.5rem;
+      grid-column: 1 / -1;
+      box-shadow: 0 8px 16px -4px var(--primary-glow);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    button::after {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 50%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transform: skewX(-20deg);
+      transition: all 0.6s ease;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 20px -4px var(--primary-glow);
+    }
+    
+    button:hover:not(:disabled)::after {
+      left: 150%;
+    }
+    
+    button:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+    
     button:disabled {
-      background-color: #d1d5db;
-      color: #9ca3af;
+      background: #374151;
+      color: #6b7280;
+      box-shadow: none;
       cursor: not-allowed;
     }
 
+    .spinner {
+      display: none;
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 0.8s linear infinite;
+      margin-right: 10px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    button.loading .spinner {
+      display: inline-block;
+    }
+
+    /* Result Area */
     #result-container {
       margin-top: 2rem;
       padding: 1.5rem;
-      border-radius: 12px;
-      background-color: var(--bg-grey);
+      border-radius: 16px;
+      background: rgba(0, 0, 0, 0.3);
       border: 1px solid var(--border-grey);
+      grid-column: 1 / -1;
+      display: none;
       animation: fadeIn 0.4s ease forwards;
     }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.35rem 0.85rem;
+      border-radius: 99px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
     
-    #result-container.hidden {
-      display: none;
+    .status-success {
+      background-color: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .status-error {
+      background-color: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
     }
 
     pre {
@@ -148,134 +297,128 @@
       white-space: pre-wrap;
       word-wrap: break-word;
       font-size: 0.85rem;
-      color: var(--text-main);
-      background: transparent;
+      color: #d1d5db;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      line-height: 1.5;
     }
     
-    .status-badge {
-      display: inline-block;
-      padding: 0.35rem 0.85rem;
-      border-radius: 99px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      margin-bottom: 1rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-    
-    .status-success {
-      background-color: #def7ec;
-      color: #03543f;
-      border: 1px solid #31c48d;
-    }
-    .status-error {
-      background-color: #fde8e8;
-      color: #9b1c1c;
-      border: 1px solid #f8b4b4;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(5px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    
-    @media (max-width: 480px) {
-      .flex-row {
-        flex-direction: column;
-        gap: 0;
-      }
+    /* Responsive adjustments */
+    @media (max-width: 600px) {
+      main { padding: 2rem 1.5rem; }
+      .form-grid { grid-template-columns: 1fr; gap: 1.25rem; }
     }
   </style>
 </head>
 <body>
 
+  <div class="ambient-orb"></div>
+
   <main>
-    <h1>API Tester</h1>
-    <p class="subtitle">Antarmuka minimalis untuk menguji model Yawn Detection Anda secara langsung.</p>
+    <header>
+      <h1>TransTrack API</h1>
+      <p class="subtitle">Platform Pengujian Yawn Detection Model</p>
+    </header>
     
-    <form id="api-form">
-      <div class="form-group">
-        <label for="url">API Endpoint</label>
-        <input type="url" id="url" name="url" required>
-      </div>
+    <form id="api-form" class="form-grid">
+      <!-- Hidden endpoint config -->
+      <input type="hidden" id="url" name="url">
       
+      <!-- Video URL -->
+      <div class="form-group full-width">
+        <label for="dms_video_url">Video DMS URL</label>
+        <input type="url" id="dms_video_url" name="dms_video_url" placeholder="https://example.com/video.mp4" required>
+      </div>
+
+      <!-- Request Details -->
       <div class="form-group">
         <label for="id">Request ID</label>
-        <input type="text" id="id" name="id" value="test-req-001" required>
+        <input type="text" id="id" name="id" value="TEST_001" required>
       </div>
 
       <div class="form-group">
-        <label for="dms_video_url">URL Video DMS</label>
-        <input type="url" id="dms_video_url" name="dms_video_url" placeholder="https://domain.com/video.mp4" required>
+        <label for="imei">IMEI Perangkat</label>
+        <input type="text" id="imei" name="imei" value="862345061234567" required inputmode="numeric" pattern="\d+">
       </div>
 
-      <div class="flex-row">
-        <div class="form-group">
-          <label for="imei">Device IMEI</label>
-          <input type="text" id="imei" name="imei" value="860123456789012" required inputmode="numeric" pattern="\d+">
-        </div>
-        <div class="form-group">
-          <label for="model">Varian Model</label>
-          <select id="model" name="model">
-            <option value="">Auto (Default)</option>
-            <option value="yolov8n">yolov8n (Nano)</option>
-            <option value="yolov8s">yolov8s (Small)</option>
-          </select>
-        </div>
+      <div class="form-group">
+        <label for="time">Waktu Kejadian (ISO 8601)</label>
+        <input type="text" id="time" name="time" placeholder="Otomatis diisi waktu sekarang jika kosong">
       </div>
-      
-      <!-- hidden input for required payload fields -->
-      <input type="hidden" id="time" name="time" value="">
-      <input type="hidden" id="alarm" name="alarm" value="yawn">
 
-      <button type="submit" id="submit-btn">Jalankan Prediksi</button>
+      <div class="form-group">
+        <label for="alarm">Tipe Alarm</label>
+        <input type="text" id="alarm" name="alarm" value="Eyes Closed" required>
+      </div>
+
+      <div class="form-group full-width">
+        <label for="model">Varian Model Deteksi</label>
+        <select id="model" name="model">
+          <option value="vj">vj (Default) - Standard Model</option>
+          <option value="vc">vc - Variant C</option>
+          <option value="vf">vf - Variant F</option>
+          <option value="vg">vg - Variant G</option>
+        </select>
+      </div>
+
+      <button type="submit" id="submit-btn">
+        <div class="spinner"></div>
+        <span id="btn-text">Mulai Analisis Video</span>
+      </button>
+
+      <div id="result-container">
+        <div id="result-status" class="status-badge"></div>
+        <pre id="result-json"></pre>
+      </div>
     </form>
-
-    <div id="result-container" class="hidden">
-      <div id="result-status" class="status-badge"></div>
-      <pre id="result-json"></pre>
-    </div>
   </main>
 
   <script>
     const form = document.getElementById('api-form');
     const submitBtn = document.getElementById('submit-btn');
+    const btnText = document.getElementById('btn-text');
     const resultContainer = document.getElementById('result-container');
     const resultStatus = document.getElementById('result-status');
     const resultJson = document.getElementById('result-json');
-    const timeInput = document.getElementById('time');
     const urlInput = document.getElementById('url');
+    const timeInput = document.getElementById('time');
     
-    // Set default API URL automatically based on the current host
+    // Auto-fill the API URL based on where this page is hosted
     urlInput.value = window.location.origin + '/predict';
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       
-      // Update time dynamically
-      timeInput.value = new Date().toISOString();
-
+      // UX: Loading state
       submitBtn.disabled = true;
-      submitBtn.textContent = 'Memproses...';
-      resultContainer.classList.add('hidden');
+      submitBtn.classList.add('loading');
+      btnText.textContent = 'Memproses Video...';
       
+      // Hide old results
+      resultContainer.style.display = 'none';
+      resultContainer.style.animation = 'none';
+      
+      // Build payload
       const formData = new FormData(form);
-      const url = formData.get('url');
+      const targetUrl = formData.get('url');
       
+      // If time is left empty, fill it with current ISO string
+      let reqTime = formData.get('time').trim();
+      if (!reqTime) {
+         reqTime = new Date().toISOString();
+         timeInput.value = reqTime; // Update input field to show what was sent
+      }
+
       const payload = {
         id: formData.get('id'),
         imei: formData.get('imei'),
-        time: formData.get('time'),
+        time: reqTime,
         alarm: formData.get('alarm'),
-        dms_video_url: formData.get('dms_video_url')
+        dms_video_url: formData.get('dms_video_url'),
+        model: formData.get('model')
       };
       
-      if (formData.get('model')) {
-        payload.model = formData.get('model');
-      }
-
       try {
-        const response = await fetch(url, {
+        const response = await fetch(targetUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -283,19 +426,30 @@
 
         const data = await response.json();
         
-        resultContainer.classList.remove('hidden');
-        resultStatus.textContent = response.ok ? 'Sukses' : 'Error';
+        // Triggers fade in animation
+        setTimeout(() => {
+          resultContainer.style.animation = '';
+          resultContainer.style.display = 'block';
+        }, 10);
+        
+        resultStatus.textContent = response.ok ? 'Analysis Success' : 'Analysis Failed';
         resultStatus.className = 'status-badge ' + (response.ok ? 'status-success' : 'status-error');
         resultJson.textContent = JSON.stringify(data, null, 2);
 
       } catch (err) {
-        resultContainer.classList.remove('hidden');
-        resultStatus.textContent = 'Network / CORS Error';
+        setTimeout(() => {
+          resultContainer.style.animation = '';
+          resultContainer.style.display = 'block';
+        }, 10);
+        
+        resultStatus.textContent = 'Network / Server Error';
         resultStatus.className = 'status-badge status-error';
-        resultJson.textContent = 'Pastikan server FastAPI berjalan di ' + url + '\n\nError Message: ' + err.message;
+        resultJson.textContent = 'Koneksi ke server gagal.\n\nError Message: ' + err.message;
       } finally {
+        // Restore button state
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Jalankan Prediksi';
+        submitBtn.classList.remove('loading');
+        btnText.textContent = 'Mulai Analisis Video';
       }
     });
   </script>

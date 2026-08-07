@@ -193,6 +193,6 @@ def predict(req: PredictRequest):
             "download_time": f"{dl_ms} ms",
             "file_size": f"{file_size_kb} kB",
             "extract_faces_ms": result["timing"]["extract_faces_ms"],
-            "transform_ms": result["timing"]["transform_ms"],
+            "inference_ms": result["timing"]["inference_ms"],
         },
     }

@@ -250,6 +250,11 @@ class YawnDetector:
         inference_ms = int((time.perf_counter() - t0) * 1000)
 
         label = id2label[int(pred.item())]
+        
+        # Map LOOK_DOWN and LOOK_AROUND to NORMAL
+        if label in ["LOOK_DOWN", "LOOK_AROUND"]:
+            label = "NORMAL"
+            
         confidence = round(float(conf.item()), 4)
 
         return {

@@ -56,6 +56,24 @@ def download_video(url: str, dest_path: str, timeout: int = 30) -> int:
             f.write(chunk)
     return int((time.perf_counter() - t0) * 1000)
 
+def check_video_download(video_path: str) -> bool:
+    """Mengecek apakah file video berhasil diunduh, tidak kosong, dan valid/bisa dibaca."""
+    if not os.path.exists(video_path):
+        return False
+    if os.path.getsize(video_path) == 0:
+        return False
+        
+    import cv2
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        cap.release()
+        return False
+    
+    # Cek apakah ada frame yang bisa dibaca
+    ret, _ = cap.read()
+    cap.release()
+    return ret
+
 
 def prompt_request_interactively() -> tuple[dict, str]:
     """Tanya id/imei/time/alarm/url/model satu-satu di terminal."""
@@ -146,7 +164,12 @@ def main():
         except Exception as e:
             print(f"Gagal download video: {e}")
             sys.exit(1)
-        file_size_kb = int(os.path.getsize(video_path) / 1000)
+            
+        if not check_video_download(video_path):
+            print("Gagal download video: Video corrupt atau kosong.")
+            sys.exit(1)
+            
+        file_size_kb = round(os.path.getsize(video_path) / 1024.0, 2)
         print(f"      Selesai dalam {dl_ms} ms ({file_size_kb} kB)")
 
         print("[3/3] Menjalankan inference ...")

@@ -103,16 +103,40 @@ def download_video(url: str, dest_path: str, timeout: int = 45) -> int:
         
     return int((time.perf_counter() - t0) * 1000)
 
+def check_video_download(video_path: str) -> bool:
+    """Mengecek apakah file video berhasil diunduh, tidak kosong, dan valid/bisa dibaca."""
+    if not os.path.exists(video_path):
+        return False
+    if os.path.getsize(video_path) == 0:
+        return False
+        
+    import cv2
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        cap.release()
+        return False
+    
+    # Cek apakah ada frame yang bisa dibaca
+    ret, _ = cap.read()
+    cap.release()
+    return ret
+
 def process_inference_task(req: PredictRequest, model_variant: str, tmp_dir: str):
     """Fungsi berat yang dijalankan di background thread agar tidak memblokir antrean server"""
     video_path = os.path.join(tmp_dir, f"{req.id}.mp4")
     dl_ms = download_video(req.dms_video_url, video_path)
-    file_size_kb = int(os.path.getsize(video_path) / 1000)
+    
+    # Cek apakah video valid dan bisa dibaca
+    if not check_video_download(video_path):
+        raise HTTPException(status_code=400, detail="Video gagal diunduh dengan sempurna atau file video corrupt.")
+        
+    file_size_kb = round(os.path.getsize(video_path) / 1024.0, 2)
 
     detector = get_detector(model_variant)
     result = detector.predict(video_path)
     
     return dl_ms, file_size_kb, result
+
 
 
 # ---------------------------------------------------------------------------

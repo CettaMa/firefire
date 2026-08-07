@@ -302,6 +302,68 @@
       line-height: 1.5;
     }
     
+    /* Beautiful Result Presentation */
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .result-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-grey);
+      border-radius: 12px;
+      padding: 1rem;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    
+    .result-card .label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    .result-card .value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    
+    details {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      overflow: hidden;
+    }
+
+    summary {
+      padding: 1rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #cbd5e1;
+      user-select: none;
+      outline: none;
+      transition: background 0.2s ease;
+    }
+    
+    summary:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    
+    details pre {
+      padding: 1rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      margin: 0;
+      background: transparent;
+    }
+
     /* Responsive adjustments */
     @media (max-width: 600px) {
       main { padding: 2rem 1.5rem; }
@@ -347,7 +409,13 @@
 
       <div class="form-group">
         <label for="alarm">Tipe Alarm</label>
-        <input type="text" id="alarm" name="alarm" value="Eyes Closed" required>
+        <select id="alarm" name="alarm" required>
+          <option value="NORMAL">NORMAL</option>
+          <option value="YAWNING">YAWNING</option>
+          <option value="EYES_CLOSED" selected>EYES_CLOSED</option>
+          <option value="LOOK_DOWN">LOOK_DOWN</option>
+          <option value="LOOK_AROUND">LOOK_AROUND</option>
+        </select>
       </div>
 
       <div class="form-group full-width">
@@ -367,7 +435,28 @@
 
       <div id="result-container">
         <div id="result-status" class="status-badge"></div>
-        <pre id="result-json"></pre>
+        
+        <div id="beautiful-result" style="display: none;">
+          <div class="result-grid">
+            <div class="result-card">
+              <span class="label">Hasil Deteksi</span>
+              <span class="value" id="ui-label">-</span>
+            </div>
+            <div class="result-card">
+              <span class="label">Akurasi</span>
+              <span class="value" id="ui-conf">-</span>
+            </div>
+            <div class="result-card">
+              <span class="label">Waktu Proses</span>
+              <span class="value" id="ui-time">-</span>
+            </div>
+          </div>
+        </div>
+
+        <details id="json-dropdown">
+          <summary>Lihat Raw JSON Response</summary>
+          <pre id="result-json"></pre>
+        </details>
       </div>
     </form>
   </main>
@@ -426,6 +515,30 @@
 
         const data = await response.json();
         
+        // Populate beautiful UI
+        const uiResult = document.getElementById('beautiful-result');
+        if (response.ok && data.status === "success") {
+          const labelEl = document.getElementById('ui-label');
+          labelEl.textContent = data.review_result || '-';
+          
+          // Color coding
+          if (data.review_result === 'NORMAL') {
+             labelEl.style.color = '#34d399'; // Green
+          } else {
+             labelEl.style.color = '#f87171'; // Red
+          }
+          
+          document.getElementById('ui-conf').textContent = (data.confidence_level || '0') + '%';
+          document.getElementById('ui-time').textContent = (data.process_duration || 0) + ' ms';
+          uiResult.style.display = 'block';
+        } else {
+          uiResult.style.display = 'none';
+        }
+
+        // Dropdown raw json logic
+        const detailsEl = document.getElementById('json-dropdown');
+        detailsEl.open = !response.ok; // Auto-open on error
+
         // Triggers fade in animation
         setTimeout(() => {
           resultContainer.style.animation = '';

@@ -319,6 +319,7 @@
       display: flex;
       flex-direction: column;
       justify-content: center;
+      align-items: center;
     }
     
     .result-card .label {
@@ -330,9 +331,11 @@
     }
     
     .result-card .value {
-      font-size: 1.5rem;
+      font-size: 1.15rem;
       font-weight: 700;
       color: var(--primary);
+      word-wrap: break-word;
+      padding: 0 0.25rem;
     }
     
     details {
@@ -443,7 +446,7 @@
               <span class="value" id="ui-label">-</span>
             </div>
             <div class="result-card">
-              <span class="label">Akurasi</span>
+              <span class="label">Confidence Level</span>
               <span class="value" id="ui-conf">-</span>
             </div>
             <div class="result-card">
@@ -509,7 +512,10 @@
       try {
         const response = await fetch(targetUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-API-Key': 'trans_track_secret_123'
+          },
           body: JSON.stringify(payload)
         });
 

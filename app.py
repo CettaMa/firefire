@@ -6,10 +6,9 @@ backend TransTrack (atau device lain) tanpa perlu jalanin script CLI manual.
 
 Endpoints:
     GET  /health            -> cek server hidup + device (cpu/cuda) + model yang sudah ke-load
-    POST /predict            -> body JSON: {id, imei, time, alarm, dms_video_url, model (opsional)}
-                                 balikin hasil deteksi (label, confidence, timing)
-    POST /warmup              -> opsional: preload salah satu/semua varian model dari awal
-                                 (biar request pertama gak kena cold-start loading model)
+    POST /predict           -> memproses video dengan limitasi konkurensi, file size, dan API Key
+    POST /warmup            -> opsional: preload varian model
+    GET  /tester            -> halaman landing page UI
 
 Jalanin lokal (tanpa docker) buat testing:
     uvicorn app:app --host 0.0.0.0 --port 8000 --reload
@@ -18,21 +17,24 @@ import os
 import tempfile
 import time
 import traceback
+import asyncio
 from typing import Optional
 
 import requests
 import urllib3
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Security, Depends
+from fastapi.security import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
 from model import MODEL_VARIANTS, DEFAULT_MODEL_VARIANT, DEVICE, get_detector
 
 # Disable warning SSL untuk server MDVR dengan sertifikat self-signed
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-app = FastAPI(title="TransTrack Yawn Detection API", version="1.0.0")
+app = FastAPI(title="TransTrack Yawn Detection API", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -42,6 +44,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ---------------------------------------------------------------------------
+# Keamanan (API Key) & Batasan (Limits)
+# ---------------------------------------------------------------------------
+API_KEY = os.getenv("API_KEY", "trans_track_secret_123")
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+def verify_api_key(api_key: str = Security(api_key_header)):
+    if api_key != API_KEY:
+        raise HTTPException(status_code=403, detail="Akses ditolak: API Key tidak valid atau tidak diberikan.")
+    return api_key
+
+MAX_FILE_SIZE = 50 * 1024 * 1024  # Maksimal 50 MB
+MAX_CONCURRENT_TASKS = int(os.getenv("MAX_CONCURRENT_TASKS", "2"))
+prediction_semaphore = None
 
 
 # ---------------------------------------------------------------------------
@@ -60,12 +76,12 @@ class PredictRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Helper
+# Helper (Download & Inference)
 # ---------------------------------------------------------------------------
 def download_video(url: str, dest_path: str, timeout: int = 45) -> int:
-    """Download video dari URL ke dest_path dengan toleransi SSL. Return waktu download (ms)."""
+    """Download video dari URL ke dest_path dengan batasan memori/ukuran file."""
     t0 = time.perf_counter()
-    headers = {"User-Agent": "TransTrack-YawnAPI/1.0"}
+    headers = {"User-Agent": "TransTrack-YawnAPI/2.0"}
     try:
         resp = requests.get(url, stream=True, timeout=timeout, verify=False, headers=headers)
         resp.raise_for_status()
@@ -74,8 +90,12 @@ def download_video(url: str, dest_path: str, timeout: int = 45) -> int:
         traceback.print_exc()
         raise HTTPException(status_code=400, detail=f"Gagal download video dari URL: {e}")
 
+    downloaded_size = 0
     with open(dest_path, "wb") as f:
         for chunk in resp.iter_content(8192):
+            downloaded_size += len(chunk)
+            if downloaded_size > MAX_FILE_SIZE:
+                raise HTTPException(status_code=413, detail="Ukuran video melebihi batas maksimal (50MB)")
             f.write(chunk)
             
     if os.path.getsize(dest_path) == 0:
@@ -83,25 +103,37 @@ def download_video(url: str, dest_path: str, timeout: int = 45) -> int:
         
     return int((time.perf_counter() - t0) * 1000)
 
+def process_inference_task(req: PredictRequest, model_variant: str, tmp_dir: str):
+    """Fungsi berat yang dijalankan di background thread agar tidak memblokir antrean server"""
+    video_path = os.path.join(tmp_dir, f"{req.id}.mp4")
+    dl_ms = download_video(req.dms_video_url, video_path)
+    file_size_kb = int(os.path.getsize(video_path) / 1000)
+
+    detector = get_detector(model_variant)
+    result = detector.predict(video_path)
+    
+    return dl_ms, file_size_kb, result
 
 
 # ---------------------------------------------------------------------------
-# Startup: preload model default biar request pertama gak lambat
+# Startup Event
 # ---------------------------------------------------------------------------
 @app.on_event("startup")
-def preload_default_model():
+def startup_event():
+    global prediction_semaphore
+    prediction_semaphore = asyncio.Semaphore(MAX_CONCURRENT_TASKS)
+    print(f"[startup] Menginisialisasi Semaphore dengan kapasitas maksimal {MAX_CONCURRENT_TASKS} request paralel.")
+    
     print(f"[startup] Preloading model default '{DEFAULT_MODEL_VARIANT}' (device={DEVICE}) ...")
     try:
         get_detector(DEFAULT_MODEL_VARIANT)
         print("[startup] Model default siap.")
     except Exception as e:
-        # Jangan crash server kalau gagal load di startup — biar bisa keliatan
-        # errornya lewat log dan endpoint /health, daripada container langsung mati.
         print(f"[startup] GAGAL load model default: {e}")
 
 
 # ---------------------------------------------------------------------------
-# Endpoints
+# Endpoints Umum
 # ---------------------------------------------------------------------------
 @app.get("/")
 def root():
@@ -123,7 +155,6 @@ def tester_page():
         return FileResponse(html_path)
     return {"error": "index.html tidak ditemukan di path: " + html_path}
 
-
 @app.get("/health")
 @app.get("/api/status")
 def health():
@@ -134,10 +165,8 @@ def health():
         "default_model_variant": DEFAULT_MODEL_VARIANT,
     }
 
-
-
 @app.post("/warmup")
-def warmup(model: Optional[str] = None):
+def warmup(model: Optional[str] = None, api_key: str = Depends(verify_api_key)):
     """Preload satu varian model tertentu (atau semua) ke cache tanpa jalanin inference."""
     variants = [model] if model else list(MODEL_VARIANTS.keys())
     loaded = []
@@ -149,34 +178,40 @@ def warmup(model: Optional[str] = None):
     return {"status": "ok", "loaded": loaded}
 
 
+# ---------------------------------------------------------------------------
+# Endpoint Inti (Inference)
+# ---------------------------------------------------------------------------
 @app.post("/predict")
-def predict(req: PredictRequest):
+async def predict(req: PredictRequest, api_key: str = Depends(verify_api_key)):
     model_variant = req.model or DEFAULT_MODEL_VARIANT
     if model_variant not in MODEL_VARIANTS:
         raise HTTPException(
             status_code=400,
             detail=f"model_variant tidak dikenal: '{model_variant}'. Pilihan: {list(MODEL_VARIANTS.keys())}",
         )
-
+        
     try:
-        detector = get_detector(model_variant)
+        # Pastikan model sudah diload ke memory
+        get_detector(model_variant)
     except Exception as e:
         print(f"[ERROR] Gagal load model '{model_variant}': {e}", flush=True)
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Gagal load model '{model_variant}': {e}")
 
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        video_path = os.path.join(tmp_dir, f"{req.id}.mp4")
-        dl_ms = download_video(req.dms_video_url, video_path)
-        file_size_kb = int(os.path.getsize(video_path) / 1000)
-
-        try:
-            result = detector.predict(video_path)
-        except Exception as e:
-            print(f"[ERROR] Gagal menjalankan inference: {e}", flush=True)
-            traceback.print_exc()
-            raise HTTPException(status_code=500, detail=f"Gagal menjalankan inference: {e}")
-
+    # Menggunakan semaphore agar memori & CPU tidak OOM/Hang saat ribuan request masuk bersamaan
+    async with prediction_semaphore:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            try:
+                # Jalankan fungsi sinkron berat (download & inference) di threadpool
+                dl_ms, file_size_kb, result = await run_in_threadpool(
+                    process_inference_task, req, model_variant, tmp_dir
+                )
+            except HTTPException:
+                raise
+            except Exception as e:
+                print(f"[ERROR] Gagal menjalankan inference: {e}", flush=True)
+                traceback.print_exc()
+                raise HTTPException(status_code=500, detail=f"Gagal menjalankan inference: {e}")
 
     return {
         "status": "success",

@@ -3,6 +3,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# test files
+tes-api.py
+tes-api.sh
+tes.ps1
+
 # C extensions
 *.so
 

@@ -39,12 +39,13 @@ if DEVICE == "cpu":
     print(f"[Config] PyTorch running on CPU (threads={threads})")
 
 
-# Ada 3 varian bobot model (vj, vc, vh). Default "vj" kalau tidak dipilih.
+# Ada 4 varian bobot model (vj, vc, vf, vg). Default "vj" kalau tidak dipilih.
 # Kalau nanti nama file bobotnya beda, cukup ubah path di dict ini saja.
 MODEL_VARIANTS = {
     "vj": "model_weights/best_loss_combined_balanced_vj.pth",
     "vc": "model_weights/best_loss_combined_balanced_vc.pth",
-    "vh": "model_weights/best_loss_combined_balanced_vh.pth",
+    "vf": "model_weights/best_loss_combined_balanced_vf.pth",
+    "vg": "model_weights/best_loss_combined_balanced_vg.pth",
 }
 DEFAULT_MODEL_VARIANT = os.getenv("MODEL_VARIANT", "vj")
 

@@ -1,13 +1,12 @@
 # ============================================================================
 # requirements.txt — TransTrack Yawn Detection API (FastAPI + Docker)
 # ============================================================================
-# Di Dockerfile, torch & torchvision diinstall khusus build CPU (--index-url) 
-# untuk menghemat ukuran image Docker dari ~3.5 GB menjadi ~650 MB.
+# PyTorch telah digantikan sepenuhnya dengan TFLite (ai-edge-litert)
+# untuk memangkas ukuran Docker image.
 #
 # Diperlukan Python 3.11+.
 
-torch==2.4.1
-torchvision==0.19.1
+ai-edge-litert==2.1.6
 
 opencv-python-headless==4.10.0.84
 numpy==1.26.4

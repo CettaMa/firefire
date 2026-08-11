@@ -17,10 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install PyTorch CPU-only versi hemat ukuran (~300MB vs ~2.5GB versi CUDA)
-RUN pip install --no-cache-dir torch==2.4.1 torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cpu
-
-# Install dependensi aplikasi sisanya
+# Install dependensi aplikasi
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 

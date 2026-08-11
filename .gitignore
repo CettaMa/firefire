@@ -42,6 +42,7 @@ env/
 ENV/
 env.bak/
 venv.bak/
+.venv3.12/
 
 # Environment variables
 .env

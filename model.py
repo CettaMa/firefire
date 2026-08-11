@@ -264,6 +264,7 @@ class YawnDetector:
                 "extract_faces_ms": extract_ms,
                 "transform_ms": transform_ms,
                 "inference_ms": inference_ms,
+                "total_inference_ms": extract_ms + transform_ms + inference_ms,
             },
         }
 

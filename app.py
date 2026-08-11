@@ -248,10 +248,12 @@ async def predict(req: PredictRequest, api_key: str = Depends(verify_api_key)):
         "confidence_level": f"{result['confidence'] * 100:.0f}",
         "review_result": result["label"],
         "process_duration": result["timing"]["inference_ms"],
+        "total_time": result["timing"]["total_inference_ms"],
         "other": {
             "download_time": f"{dl_ms} ms",
             "file_size": f"{file_size_kb} kB",
             "extract_faces_ms": result["timing"]["extract_faces_ms"],
             "inference_ms": result["timing"]["inference_ms"],
+            "total_inference_ms": result["timing"]["total_inference_ms"],
         },
     }

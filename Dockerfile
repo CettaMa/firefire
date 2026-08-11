@@ -22,7 +22,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy kode aplikasi
-COPY app.py model.py index.html ./
+COPY app.py model.py tasks.py index.html ./
 
 EXPOSE 8000
 

@@ -1,5 +1,12 @@
 services:
-  yawn-detection:
+  redis:
+    image: redis:alpine
+    container_name: transtrack-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  api:
     build: .
     container_name: transtrack-yawn-api
     ports:
@@ -10,4 +17,22 @@ services:
       - DEVICE=cpu
       - MODEL_VARIANT=vj
       - OMP_NUM_THREADS=2
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  worker:
+    build: .
+    # No static container_name so we can scale > 1
+    volumes:
+      - ./model_weights:/app/model_weights
+    command: ["rq", "worker", "-u", "redis://redis:6379/0", "yawn_tasks"]
+    environment:
+      - DEVICE=cpu
+      - MODEL_VARIANT=vj
+      - OMP_NUM_THREADS=2
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
     restart: unless-stopped

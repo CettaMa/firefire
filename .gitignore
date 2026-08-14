@@ -42,6 +42,7 @@ env/
 ENV/
 env.bak/
 venv.bak/
+.venv3.12/
 
 # Environment variables
 .env
@@ -52,6 +53,10 @@ venv.bak/
 .idea/
 *.swp
 *.swo
+
+# agent files
+.agents/
+graphify-out/
 
 # OS generated files
 .DS_Store

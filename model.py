@@ -18,34 +18,20 @@ import time
 
 import cv2
 import numpy as np
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torchvision import models, transforms
+from ai_edge_litert.interpreter import Interpreter
 
 # ---------------------------------------------------------------------------
 # Config (bisa di-override lewat environment variable)
 # ---------------------------------------------------------------------------
-_requested_device = os.getenv("DEVICE", "cuda" if torch.cuda.is_available() else "cpu").lower()
-if _requested_device == "cuda" and not torch.cuda.is_available():
-    print("[WARNING] DEVICE=cuda diatur, tetapi PyTorch/Docker tidak mendeteksi GPU/NVIDIA Driver. Auto-fallback ke 'cpu'.")
-    DEVICE = "cpu"
-else:
-    DEVICE = _requested_device
+DEVICE = "cpu"
 
-if DEVICE == "cpu":
-    threads = int(os.getenv("OMP_NUM_THREADS", "2"))
-    torch.set_num_threads(threads)
-    print(f"[Config] PyTorch running on CPU (threads={threads})")
-
-
-# Ada 4 varian bobot model (vj, vc, vf, vg). Default "vj" kalau tidak dipilih.
-# Kalau nanti nama file bobotnya beda, cukup ubah path di dict ini saja.
+# TFLite model variants
 MODEL_VARIANTS = {
-    "vj": "model_weights/best_loss_combined_balanced_vj.pth",
-    "vc": "model_weights/best_loss_combined_balanced_vc.pth",
-    "vf": "model_weights/best_loss_combined_balanced_vf.pth",
-    "vg": "model_weights/best_loss_combined_balanced_vg.pth",
+    "vc": "model_weights/vc.tflite",
+    "vf": "model_weights/vf.tflite",
+    "vg": "model_weights/vg.tflite",
+    "vh": "model_weights/vh.tflite",
+    "vj": "model_weights/vj.tflite",
 }
 DEFAULT_MODEL_VARIANT = os.getenv("MODEL_VARIANT", "vj")
 
@@ -68,47 +54,22 @@ id2label = {
 }
 label2id = {v: k for k, v in id2label.items()}
 
-_tfms = transforms.Compose(
-    [
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-    ]
-)
+def numpy_tfms(faces):
+    """Pengganti torchvision.transforms menggunakan numpy murni."""
+    # Convert list of images to array, normalize to [0, 1]
+    faces_np = np.stack(faces).astype(np.float32) / 255.0
+    # Ubah format channel-last (H, W, C) menjadi channel-first (C, H, W)
+    faces_np = np.transpose(faces_np, (0, 3, 1, 2))
+    
+    # Normalize ImageNet
+    mean = np.array([0.485, 0.456, 0.406], dtype=np.float32).reshape(1, 3, 1, 1)
+    std = np.array([0.229, 0.224, 0.225], dtype=np.float32).reshape(1, 3, 1, 1)
+    
+    return (faces_np - mean) / std
 
-
-# ---------------------------------------------------------------------------
-# Arsitektur model — HARUS identik dengan waktu training, kalau tidak
-# load_state_dict() akan error "size mismatch" / "missing keys".
-# ---------------------------------------------------------------------------
-class YawNetCombined(nn.Module):
-    def __init__(self, num_classes=5, emb_dim=128, gru_hidden=64):
-        super().__init__()
-        base = models.mobilenet_v2(weights=None)
-        base.classifier = nn.Identity()
-        self.backbone = base
-
-        self.compressor = nn.Sequential(
-            nn.Linear(1280, emb_dim), nn.ReLU(), nn.Dropout(0.2)
-        )
-        self.gru = nn.GRU(
-            input_size=emb_dim,
-            hidden_size=gru_hidden,
-            num_layers=1,
-            batch_first=True,
-        )
-        self.classifier = nn.Linear(gru_hidden, num_classes)
-
-    def forward(self, video):
-        # video: [B, T, C, H, W]  contoh: [1, 20, 3, 224, 224]
-        B, T, C, H, W = video.shape
-        x = video.view(B * T, C, H, W)
-        x = self.backbone(x)
-        x = x.flatten(1)
-        x = self.compressor(x)
-        x = x.view(B, T, -1)
-        gru_out, _ = self.gru(x)
-        last_out = gru_out[:, -1, :]
-        return self.classifier(last_out)
+def softmax(x):
+    e_x = np.exp(x - np.max(x, axis=1, keepdims=True))
+    return e_x / e_x.sum(axis=1, keepdims=True)
 
 
 # ---------------------------------------------------------------------------
@@ -227,11 +188,12 @@ class YawnDetector:
         weights_path = MODEL_VARIANTS[model_variant]
 
         self.device = DEVICE
-        self.model = YawNetCombined(num_classes=len(id2label)).to(self.device)
-        state_dict = torch.load(weights_path, map_location=torch.device(self.device))
-        self.model.load_state_dict(state_dict)
-        self.model.eval()
-        print(f"[YawnDetector] Loaded '{model_variant}' ({weights_path}) on device={self.device}")
+        print(f"[YawnDetector] Loading TFLite model from {weights_path}...")
+        self.interpreter = Interpreter(model_path=weights_path, num_threads=int(os.getenv("OMP_NUM_THREADS", "2")))
+        self.interpreter.allocate_tensors()
+        self.input_details = self.interpreter.get_input_details()
+        self.output_details = self.interpreter.get_output_details()
+        print(f"[YawnDetector] Loaded '{model_variant}' (TFLite) successfully.")
 
     def predict(self, video_path: str) -> dict:
         t0 = time.perf_counter()
@@ -239,14 +201,20 @@ class YawnDetector:
         extract_ms = int((time.perf_counter() - t0) * 1000)
 
         t0 = time.perf_counter()
-        video_tensor = torch.stack([_tfms(f) for f in faces])
+        # Numpy transformations (No PyTorch needed)
+        video_tensor = numpy_tfms(faces)
+        # Expand dims to simulate Batch=1 -> [1, 20, 3, 224, 224]
+        video_tensor = np.expand_dims(video_tensor, axis=0)
         transform_ms = int((time.perf_counter() - t0) * 1000)
 
         t0 = time.perf_counter()
-        with torch.no_grad():
-            logits = self.model(video_tensor.unsqueeze(0).to(self.device))
-            probs = F.softmax(logits, dim=1)
-            conf, pred = probs.max(dim=1)
+        self.interpreter.set_tensor(self.input_details[0]['index'], video_tensor)
+        self.interpreter.invoke()
+        logits = self.interpreter.get_tensor(self.output_details[0]['index'])
+        
+        probs = softmax(logits)
+        pred = np.argmax(probs, axis=1)[0]
+        conf = probs[0, pred]
         inference_ms = int((time.perf_counter() - t0) * 1000)
 
         label = id2label[int(pred.item())]

@@ -54,6 +54,10 @@ venv.bak/
 *.swp
 *.swo
 
+# agent files
+.agents/
+graphify-out/
+
 # OS generated files
 .DS_Store
 Thumbs.db

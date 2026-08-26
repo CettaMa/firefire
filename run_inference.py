@@ -43,7 +43,12 @@ import time
 
 import requests
 
-from model import MODEL_VARIANTS, get_detector
+from model import (
+    MODEL_VARIANTS,
+    DEFAULT_MODEL_VARIANT,
+    get_detector,
+    resolve_model_variant,
+)
 
 
 def download_video(url: str, dest_path: str, timeout: int = 30) -> int:
@@ -89,13 +94,17 @@ def prompt_request_interactively() -> tuple[dict, str]:
         if not url:
             print("  -> dms_video_url wajib diisi, tidak boleh kosong.")
 
-    variant_list = list(MODEL_VARIANTS.keys())
     model_variant = ""
-    while model_variant not in MODEL_VARIANTS:
-        raw = input(f"model ({'/'.join(variant_list)}): ").strip().lower()
-        model_variant = raw if raw else "vj"
-        if model_variant not in MODEL_VARIANTS:
-            print(f"  -> pilihan tidak dikenal, harus salah satu dari: {variant_list}")
+    while not model_variant:
+        print(f"\nPilihan varian model ({len(MODEL_VARIANTS)} varian):")
+        print("  - Huruf : va, vb, vc, vd, ve, vf, vg, vh, vi, vj")
+        print("  - Angka : v1, v2, v3, v4, v5, v6, v7, v8, v9")
+        raw = input(f"model (default: {DEFAULT_MODEL_VARIANT}): ").strip()
+        chosen = resolve_model_variant(raw) if raw else DEFAULT_MODEL_VARIANT
+        if chosen in MODEL_VARIANTS:
+            model_variant = chosen
+        else:
+            print(f"  -> pilihan '{raw}' tidak dikenal, pilih salah satu dari daftar.")
 
     request_data = {
         "id": video_id,
@@ -137,16 +146,18 @@ def main():
     parser.add_argument("--json", help="path ke file JSON berisi id/imei/time/alarm/dms_video_url (alternatif dari isi satu-satu lewat argumen)")
     parser.add_argument(
         "--model",
-        choices=list(MODEL_VARIANTS.keys()),
-        default="vj",
-        help=f"varian model yang dipakai: {list(MODEL_VARIANTS.keys())} (default: vj)",
+        default=DEFAULT_MODEL_VARIANT,
+        help=f"varian model yang dipakai: {list(MODEL_VARIANTS.keys())} (default: {DEFAULT_MODEL_VARIANT})",
     )
     args = parser.parse_args()
 
     if args.json or args.url:
         # Mode CLI: semua data sudah diisi lewat argumen.
         request_data = build_request_from_args(args)
-        model_variant = args.model
+        model_variant = resolve_model_variant(args.model)
+        if model_variant not in MODEL_VARIANTS:
+            print(f"Error: Model '{args.model}' tidak dikenal. Pilihan: {list(MODEL_VARIANTS.keys())}")
+            sys.exit(1)
     else:
         # Mode interaktif: tidak ada --url/--json sama sekali -> tanya di terminal.
         request_data, model_variant = prompt_request_interactively()

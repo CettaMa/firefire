@@ -10,17 +10,17 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 # ==========================================
 # Konfigurasi
 # ==========================================
-API_URL = "http://localhost:8000/predict"
+API_URL = "http://34.50.113.197:8000/predict"
 API_KEY = "trans_track_secret_123"
 NUM_REQUESTS = 10
 
 # Kita pakai host.docker.internal agar container worker bisa mengirim POST 
 # kembali ke komputer host (laptop Anda) tempat script ini berjalan.
 WEBHOOK_PORT = 9090
-WEBHOOK_URL = f"http://host.docker.internal:{WEBHOOK_PORT}/webhook"
+WEBHOOK_URL = f"https://proposal-banister-privatize.ngrok-free.dev/webhook"  # Ganti dengan URL webhook Anda (misal pakai ngrok atau localtunnel)
 
 # Dummy video URL (pastikan URL ini valid & bisa didownload cepat untuk testing)
-TEST_VIDEO_URL = "https://raw.githubusercontent.com/intel-iot-devkit/sample-videos/master/head-pose-face-detection-female-and-male.mp4"
+TEST_VIDEO_URL = "https://drive.google.com/uc?export=download&id=1NAjtG19jupCiHHqXOLvADWKWXDIiFxFm"
 
 # Global state untuk melacak selesainya program
 completed_tasks = 0

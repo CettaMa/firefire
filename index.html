@@ -174,10 +174,18 @@
       color: #4b5563;
     }
     
-    /* Style the select options for better visibility on some OS */
+    /* Style the select options and optgroups for better visibility */
+    optgroup {
+      background-color: #1a1d24;
+      color: var(--primary);
+      font-weight: 700;
+      font-size: 0.85rem;
+      padding: 0.4rem 0.2rem;
+    }
     option {
       background-color: var(--bg-dark);
       color: var(--text-main);
+      font-weight: normal;
     }
 
     button {
@@ -381,7 +389,7 @@
   <main>
     <header>
       <h1>TransTrack API</h1>
-      <p class="subtitle">Platform Pengujian Model</p>
+      <p class="subtitle">Platform Pengujian Model Deteksi Kantuk</p>
     </header>
     
     <form id="api-form" class="form-grid">
@@ -419,14 +427,40 @@
         </select>
       </div>
 
+      <!-- Varian Model Deteksi (19 Model TFLite) -->
       <div class="form-group full-width">
-        <label for="model">Varian Model Deteksi</label>
+        <label for="model">Varian Model Deteksi <span style="font-size:0.75rem; color:var(--text-muted); font-weight:normal;">(19 Model TFLite Tersedia)</span></label>
         <select id="model" name="model">
-          <option value="vj">vj - Variant J</option>
-          <option value="vc">vc - Variant C</option>
-          <option value="vf">vf - Variant F</option>
-          <option value="vg">vg - Variant G</option>
+          <optgroup label="Model Huruf (Alphabet Variants - 10 Varian)">
+            <option value="vj" selected>vj - Model Variant J</option>
+            <option value="va">va - Model Variant A</option>
+            <option value="vb">vb - Model Variant B</option>
+            <option value="vc">vc - Model Variant C</option>
+            <option value="vd">vd - Model Variant D</option>
+            <option value="ve">ve - Model Variant E</option>
+            <option value="vf">vf - Model Variant F</option>
+            <option value="vg">vg - Model Variant G</option>
+            <option value="vh">vh - Model Variant H</option>
+            <option value="vi">vi - Model Variant I</option>
+          </optgroup>
+          <optgroup label="Model Angka (Numeric Variants - 9 Varian)">
+            <option value="v1">v1 - Model Variant 1</option>
+            <option value="v2">v2 - Model Variant 2</option>
+            <option value="v3">v3 - Model Variant 3</option>
+            <option value="v4">v4 - Model Variant 4</option>
+            <option value="v5">v5 - Model Variant 5</option>
+            <option value="v6">v6 - Model Variant 6</option>
+            <option value="v7">v7 - Model Variant 7</option>
+            <option value="v8">v8 - Model Variant 8</option>
+            <option value="v9">v9 - Model Variant 9</option>
+          </optgroup>
         </select>
+      </div>
+
+      <!-- Webhook URL (Opsional) -->
+      <div class="form-group full-width">
+        <label for="webhook_url">Webhook URL <span style="font-size:0.75rem; color:var(--text-muted); font-weight:normal;">(Opsional — kosongkan untuk hasil langsung sinkron)</span></label>
+        <input type="url" id="webhook_url" name="webhook_url" placeholder="https://webhook.site/... (opsional)">
       </div>
 
       <button type="submit" id="submit-btn">
@@ -437,6 +471,7 @@
       <div id="result-container">
         <div id="result-status" class="status-badge"></div>
         
+        <!-- Synchronous Success Card -->
         <div id="beautiful-result" style="display: none;">
           <div class="result-grid">
             <div class="result-card">
@@ -444,13 +479,30 @@
               <span class="value" id="ui-label">-</span>
             </div>
             <div class="result-card">
-              <span class="label">Confidence Level</span>
+              <span class="label">Confidence</span>
               <span class="value" id="ui-conf">-</span>
             </div>
             <div class="result-card">
-              <span class="label">Waktu Proses</span>
+              <span class="label">Model Digunakan</span>
+              <span class="value" id="ui-model" style="color: #60a5fa;">-</span>
+            </div>
+            <div class="result-card">
+              <span class="label">Waktu Inferensi</span>
               <span class="value" id="ui-time">-</span>
             </div>
+          </div>
+        </div>
+
+        <!-- Asynchronous Queued Card -->
+        <div id="queued-result" style="display: none; padding: 1.25rem; margin-bottom: 1.25rem; border-radius: 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3);">
+          <div style="font-size: 0.95rem; font-weight: 600; color: #60a5fa; margin-bottom: 0.5rem;">
+            <span>⏱️ Tugas Dimasukkan ke Antrean (Asynchronous)</span>
+          </div>
+          <div style="font-size: 0.85rem; color: #cbd5e1; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+            <div><strong>Job ID:</strong> <span id="queue-job-id" style="font-family: monospace; color: #93c5fd;">-</span></div>
+            <div><strong>Model:</strong> <span id="queue-model" style="font-family: monospace; color: #93c5fd;">-</span></div>
+            <div style="grid-column: 1 / -1;"><strong>Posisi Antrean:</strong> <span id="queue-pos" style="color: #34d399; font-weight: bold;">-</span></div>
+            <div style="grid-column: 1 / -1; font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">Hasil pemrosesan akan otomatis di-POST ke webhook URL yang Anda berikan.</div>
           </div>
         </div>
 
@@ -471,9 +523,69 @@
     const resultJson = document.getElementById('result-json');
     const urlInput = document.getElementById('url');
     const timeInput = document.getElementById('time');
+    const modelSelect = document.getElementById('model');
+    const modelCountBadge = document.getElementById('model-count-badge');
+    const serverStatusBadge = document.getElementById('server-status-badge');
     
     // Auto-fill the API URL based on where this page is hosted
     urlInput.value = window.location.origin + '/predict';
+
+    // Dynamic model fetch & server status
+    async function initModelsAndHealth() {
+      try {
+        const [modelsResp, healthResp] = await Promise.allSettled([
+          fetch(window.location.origin + '/models'),
+          fetch(window.location.origin + '/health')
+        ]);
+
+        if (modelsResp.status === 'fulfilled' && modelsResp.value.ok) {
+          const data = await modelsResp.value.json();
+          if (data.total && modelCountBadge) {
+            modelCountBadge.textContent = `${data.total} Model Terintegrasi`;
+          }
+          if (data.models && data.models.length > 0) {
+            const currentSelected = modelSelect.value || data.default_model || 'vj';
+            modelSelect.innerHTML = '';
+
+            const alphaGroup = document.createElement('optgroup');
+            alphaGroup.label = 'Model Huruf (Alphabet Variants)';
+
+            const numGroup = document.createElement('optgroup');
+            numGroup.label = 'Model Angka (Numeric Variants)';
+
+            data.models.forEach(m => {
+              const opt = document.createElement('option');
+              opt.value = m.id;
+              const isDef = m.is_default ? ' (Default / Recommended)' : '';
+              opt.textContent = `${m.id} - ${m.label}${isDef}`;
+              if (m.id === currentSelected) {
+                opt.selected = true;
+              }
+
+              if (/^v\d+$/i.test(m.id)) {
+                numGroup.appendChild(opt);
+              } else {
+                alphaGroup.appendChild(opt);
+              }
+            });
+
+            if (alphaGroup.children.length > 0) modelSelect.appendChild(alphaGroup);
+            if (numGroup.children.length > 0) modelSelect.appendChild(numGroup);
+          }
+        }
+
+        if (healthResp.status === 'fulfilled' && healthResp.value.ok) {
+          const hdata = await healthResp.value.json();
+          if (serverStatusBadge) {
+            serverStatusBadge.textContent = `Device: ${hdata.device?.toUpperCase() || 'CPU'} • Redis: ${hdata.redis_status || 'OK'}`;
+          }
+        }
+      } catch (err) {
+        console.warn('Gagal memuat dynamic info:', err);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', initModelsAndHealth);
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -486,6 +598,8 @@
       // Hide old results
       resultContainer.style.display = 'none';
       resultContainer.style.animation = 'none';
+      document.getElementById('beautiful-result').style.display = 'none';
+      document.getElementById('queued-result').style.display = 'none';
       
       // Build payload
       const formData = new FormData(form);
@@ -495,7 +609,7 @@
       let reqTime = formData.get('time').trim();
       if (!reqTime) {
          reqTime = new Date().toISOString();
-         timeInput.value = reqTime; // Update input field to show what was sent
+         timeInput.value = reqTime;
       }
 
       const payload = {
@@ -506,6 +620,11 @@
         dms_video_url: formData.get('dms_video_url'),
         model: formData.get('model')
       };
+
+      const webhookVal = formData.get('webhook_url')?.trim();
+      if (webhookVal) {
+        payload.webhook_url = webhookVal;
+      }
       
       try {
         const response = await fetch(targetUrl, {
@@ -519,38 +638,55 @@
 
         const data = await response.json();
         
-        // Populate beautiful UI
         const uiResult = document.getElementById('beautiful-result');
-        if (response.ok && data.status === "success") {
+        const queuedResult = document.getElementById('queued-result');
+
+        if (response.ok && data.status === 'success') {
           const labelEl = document.getElementById('ui-label');
           labelEl.textContent = data.review_result || '-';
           
           // Color coding
           if (data.review_result === 'NORMAL') {
              labelEl.style.color = '#34d399'; // Green
+          } else if (data.review_result === 'YAWNING') {
+             labelEl.style.color = '#fb923c'; // Orange
           } else {
              labelEl.style.color = '#f87171'; // Red
           }
           
           document.getElementById('ui-conf').textContent = (data.confidence_level || '0') + '%';
-          document.getElementById('ui-time').textContent = (data.process_duration || 0) + ' ms';
+          document.getElementById('ui-model').textContent = data.model_variant || payload.model || '-';
+          document.getElementById('ui-time').textContent = (data.process_duration || data.total_time || 0) + ' ms';
           uiResult.style.display = 'block';
+          queuedResult.style.display = 'none';
+
+          resultStatus.textContent = 'Analysis Success';
+          resultStatus.className = 'status-badge status-success';
+        } else if (response.ok && data.status === 'queued') {
+          uiResult.style.display = 'none';
+          document.getElementById('queue-job-id').textContent = data.job_id || '-';
+          document.getElementById('queue-pos').textContent = `#${data.queue_position || 1} dalam antrean`;
+          document.getElementById('queue-model').textContent = data.model_variant || payload.model || '-';
+          queuedResult.style.display = 'block';
+
+          resultStatus.textContent = 'Task Queued (Async)';
+          resultStatus.className = 'status-badge status-success';
         } else {
           uiResult.style.display = 'none';
+          queuedResult.style.display = 'none';
+          resultStatus.textContent = 'Analysis Failed';
+          resultStatus.className = 'status-badge status-error';
         }
 
-        // Dropdown raw json logic
+        // Details dropdown logic
         const detailsEl = document.getElementById('json-dropdown');
-        detailsEl.open = !response.ok; // Auto-open on error
+        detailsEl.open = !response.ok;
 
-        // Triggers fade in animation
         setTimeout(() => {
           resultContainer.style.animation = '';
           resultContainer.style.display = 'block';
         }, 10);
         
-        resultStatus.textContent = response.ok ? 'Analysis Success' : 'Analysis Failed';
-        resultStatus.className = 'status-badge ' + (response.ok ? 'status-success' : 'status-error');
         resultJson.textContent = JSON.stringify(data, null, 2);
 
       } catch (err) {
@@ -563,7 +699,6 @@
         resultStatus.className = 'status-badge status-error';
         resultJson.textContent = 'Koneksi ke server gagal.\n\nError Message: ' + err.message;
       } finally {
-        // Restore button state
         submitBtn.disabled = false;
         submitBtn.classList.remove('loading');
         btnText.textContent = 'Mulai Analisis Video';

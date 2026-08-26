@@ -4,8 +4,7 @@ import tempfile
 import traceback
 import requests
 from fastapi import HTTPException
-from pydantic import BaseModel
-from model import get_detector
+from model import get_detector, resolve_model_variant
 
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 
@@ -62,6 +61,7 @@ def process_and_notify(req_dict: dict, model_variant: str):
         print("[ERROR] Task dibatalkan karena tidak ada webhook_url.")
         return
 
+    resolved_variant = resolve_model_variant(model_variant)
     result_payload = {
         "status": "failed",
         "id": req_dict.get("id"),
@@ -69,7 +69,7 @@ def process_and_notify(req_dict: dict, model_variant: str):
         "time": req_dict.get("time"),
         "alarm": req_dict.get("alarm"),
         "dms_video_url": req_dict.get("dms_video_url"),
-        "model_variant": model_variant,
+        "model_variant": resolved_variant,
     }
 
     try:
@@ -86,7 +86,7 @@ def process_and_notify(req_dict: dict, model_variant: str):
             file_size_kb = round(os.path.getsize(video_path) / 1024.0, 2)
             
             # 3. Inference
-            detector = get_detector(model_variant)
+            detector = get_detector(resolved_variant)
             inf_result = detector.predict(video_path)
             
             # 4. Construct Success Payload

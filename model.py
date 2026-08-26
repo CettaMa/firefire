@@ -1,39 +1,137 @@
 """
 Model definition + inference logic untuk TransTrack Yawn/Fatigue Detection.
 
-Diadaptasi dari script inference dosen (inference_vid_final_combined.py):
-- Arsitektur YawNetCombined (MobileNetV2 backbone + GRU) dipertahankan PERSIS
-  supaya load_state_dict() dari file .pth (vj/vc/vh) cocok.
+Diadaptasi untuk format model TFLite (ai-edge-litert / tflite-runtime):
+- Mendukung 19 varian model:
+    - Numeric variants (v1, v2, v3, v4, v5, v6, v7, v8, v9)
+    - Alphabet variants (va, vb, vc, vd, ve, vf, vg, vh, vi, vj)
+- Mendukung dynamic scanning folder model_weights untuk auto-register model baru.
 - Logic face-extraction (DNN face detector -> crop -> resize 224x224) dipertahankan.
-- Dibungkus jadi class YawnDetector yang bisa di-load per-varian model
-  (vj/vc/vh, lihat MODEL_VARIANTS) dan di-cache lewat get_detector(), supaya
-  tidak reload dari disk tiap kali dipanggil dengan varian yang sama.
-- Input berupa link video (dms_video_url), bukan lagi path video lokal —
-  urusan download video ada di run_inference.py, file ini murni model +
-  inference logic saja.
+- Dibungkus jadi class YawnDetector yang di-cache lewat get_detector() per-varian model.
 """
 import os
 import threading
 import time
+from typing import Optional
 
 import cv2
 import numpy as np
-from ai_edge_litert.interpreter import Interpreter
+
+# Defensive import untuk interpreter TFLite
+try:
+    from ai_edge_litert.interpreter import Interpreter
+except ImportError:
+    try:
+        from tflite_runtime.interpreter import Interpreter
+    except ImportError:
+        try:
+            import tensorflow as tf
+            Interpreter = tf.lite.Interpreter
+        except ImportError:
+            Interpreter = None
 
 # ---------------------------------------------------------------------------
-# Config (bisa di-override lewat environment variable)
+# Config & Path Helper (bisa di-override lewat environment variable)
 # ---------------------------------------------------------------------------
 DEVICE = "cpu"
 
-# TFLite model variants
-MODEL_VARIANTS = {
-    "vc": "model_weights/vc.tflite",
-    "vf": "model_weights/vf.tflite",
-    "vg": "model_weights/vg.tflite",
-    "vh": "model_weights/vh.tflite",
-    "vj": "model_weights/vj.tflite",
+
+def _resolve_path(rel_or_abs_path: str) -> str:
+    """Membantu resolve path baik saat dijalankan dari root direktori maupun direktori lain."""
+    if os.path.exists(rel_or_abs_path):
+        return rel_or_abs_path
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    alt_path = os.path.join(base_dir, rel_or_abs_path)
+    if os.path.exists(alt_path):
+        return alt_path
+    return rel_or_abs_path
+
+
+# ---------------------------------------------------------------------------
+# Definisi Varian Model TFLite
+# ---------------------------------------------------------------------------
+STATIC_MODEL_VARIANTS = {
+    # Numeric variants (v1 - v9)
+    "v1": "model_weights/best_loss_combined_balanced_v1.tflite",
+    "v2": "model_weights/best_loss_combined_balanced_v2.tflite",
+    "v3": "model_weights/best_loss_combined_balanced_v3.tflite",
+    "v4": "model_weights/best_loss_combined_balanced_v4.tflite",
+    "v5": "model_weights/best_loss_combined_balanced_v5.tflite",
+    "v6": "model_weights/best_loss_combined_balanced_v6.tflite",
+    "v7": "model_weights/best_loss_combined_balanced_v7.tflite",
+    "v8": "model_weights/best_loss_combined_balanced_v8.tflite",
+    "v9": "model_weights/best_loss_combined_balanced_v9.tflite",
+    # Alphabet variants (va - vj)
+    "va": "model_weights/best_loss_combined_balanced_va.tflite",
+    "vb": "model_weights/best_loss_combined_balanced_vb.tflite",
+    "vc": "model_weights/best_loss_combined_balanced_vc.tflite",
+    "vd": "model_weights/best_loss_combined_balanced_vd.tflite",
+    "ve": "model_weights/best_loss_combined_balanced_ve.tflite",
+    "vf": "model_weights/best_loss_combined_balanced_vf.tflite",
+    "vg": "model_weights/best_loss_combined_balanced_vg.tflite",
+    "vh": "model_weights/best_loss_combined_balanced_vh.tflite",
+    "vi": "model_weights/best_loss_combined_balanced_vi.tflite",
+    "vj": "model_weights/best_loss_combined_balanced_vj.tflite",
 }
+
+
+def discover_model_variants(weights_dir: str = "model_weights") -> dict[str, str]:
+    """
+    Memindai folder model_weights secara dinamis untuk mendeteksi semua file .tflite.
+    Mendukung model berformat best_loss_combined_balanced_<name>.tflite ataupun <name>.tflite.
+    """
+    variants = {}
+    target_dir = _resolve_path(weights_dir)
+    if os.path.exists(target_dir) and os.path.isdir(target_dir):
+        for fname in sorted(os.listdir(target_dir)):
+            if fname.endswith(".tflite"):
+                fpath = os.path.join(weights_dir, fname).replace("\\", "/")
+                stem = fname[:-7]
+                if stem.startswith("best_loss_combined_balanced_"):
+                    short_key = stem[len("best_loss_combined_balanced_"):]
+                    variants[short_key] = fpath
+                else:
+                    variants[stem] = fpath
+    return variants
+
+
+# Dictionary varian model aktif (gabungan static list dan dynamic scan folder)
+MODEL_VARIANTS: dict[str, str] = dict(STATIC_MODEL_VARIANTS)
+_discovered = discover_model_variants()
+if _discovered:
+    MODEL_VARIANTS.update(_discovered)
+
 DEFAULT_MODEL_VARIANT = os.getenv("MODEL_VARIANT", "vj")
+
+
+def resolve_model_variant(name: Optional[str]) -> str:
+    """
+    Menormalkan input varian model dan mencocokkan alias ke key MODEL_VARIANTS yang valid.
+    Contoh:
+      - 'vj' -> 'vj'
+      - 'best_loss_combined_balanced_v1' -> 'v1'
+      - 'best_loss_combined_balanced_v1.tflite' -> 'v1'
+      - None / '' -> DEFAULT_MODEL_VARIANT
+    """
+    if not name:
+        return DEFAULT_MODEL_VARIANT
+    name_str = str(name).strip()
+    if name_str in MODEL_VARIANTS:
+        return name_str
+
+    lowered = os.path.basename(name_str.lower())
+    if lowered.endswith(".tflite"):
+        lowered = lowered[:-7]
+    if lowered.startswith("best_loss_combined_balanced_"):
+        lowered = lowered[len("best_loss_combined_balanced_"):]
+
+    if lowered in MODEL_VARIANTS:
+        return lowered
+    if name_str.lower() in MODEL_VARIANTS:
+        return name_str.lower()
+
+    return name_str
+
 
 FACE_PROTOTXT = os.getenv(
     "FACE_PROTOTXT", "model_weights/face_detector/deploy.prototxt"
@@ -81,7 +179,9 @@ _thread_local = threading.local()
 
 def _get_face_net():
     if not hasattr(_thread_local, "net"):
-        _thread_local.net = cv2.dnn.readNetFromCaffe(FACE_PROTOTXT, FACE_MODEL)
+        proto = _resolve_path(FACE_PROTOTXT)
+        caffe = _resolve_path(FACE_MODEL)
+        _thread_local.net = cv2.dnn.readNetFromCaffe(proto, caffe)
     return _thread_local.net
 
 
@@ -179,21 +279,33 @@ def extract_faces(video_path, conf_threshold=None, taken_frm=None):
 # ---------------------------------------------------------------------------
 class YawnDetector:
     def __init__(self, model_variant: str = DEFAULT_MODEL_VARIANT):
-        if model_variant not in MODEL_VARIANTS:
+        resolved_variant = resolve_model_variant(model_variant)
+        if resolved_variant not in MODEL_VARIANTS:
             raise ValueError(
                 f"model_variant tidak dikenal: '{model_variant}'. "
-                f"Pilihan yang valid: {list(MODEL_VARIANTS.keys())}"
+                f"Pilihan yang valid ({len(MODEL_VARIANTS)} varian): {list(MODEL_VARIANTS.keys())}"
             )
-        self.model_variant = model_variant
-        weights_path = MODEL_VARIANTS[model_variant]
+        self.model_variant = resolved_variant
+        weights_path = _resolve_path(MODEL_VARIANTS[resolved_variant])
+
+        if not os.path.exists(weights_path):
+            raise FileNotFoundError(f"File model '{weights_path}' tidak ditemukan di disk.")
+
+        if Interpreter is None:
+            raise ImportError(
+                "TFLite Interpreter tidak ditemukan. Pastikan package 'ai-edge-litert' atau 'tflite-runtime' sudah terpasang."
+            )
 
         self.device = DEVICE
         print(f"[YawnDetector] Loading TFLite model from {weights_path}...")
-        self.interpreter = Interpreter(model_path=weights_path, num_threads=int(os.getenv("OMP_NUM_THREADS", "2")))
+        self.interpreter = Interpreter(
+            model_path=weights_path,
+            num_threads=int(os.getenv("OMP_NUM_THREADS", "2"))
+        )
         self.interpreter.allocate_tensors()
         self.input_details = self.interpreter.get_input_details()
         self.output_details = self.interpreter.get_output_details()
-        print(f"[YawnDetector] Loaded '{model_variant}' (TFLite) successfully.")
+        print(f"[YawnDetector] Loaded '{resolved_variant}' ({weights_path}) successfully.")
 
     def predict(self, video_path: str) -> dict:
         t0 = time.perf_counter()
@@ -211,18 +323,18 @@ class YawnDetector:
         self.interpreter.set_tensor(self.input_details[0]['index'], video_tensor)
         self.interpreter.invoke()
         logits = self.interpreter.get_tensor(self.output_details[0]['index'])
-        
+
         probs = softmax(logits)
         pred = np.argmax(probs, axis=1)[0]
         conf = probs[0, pred]
         inference_ms = int((time.perf_counter() - t0) * 1000)
 
         label = id2label[int(pred.item())]
-        
+
         # Map LOOK_DOWN and LOOK_AROUND to NORMAL
         if label in ["LOOK_DOWN", "LOOK_AROUND"]:
             label = "NORMAL"
-            
+
         confidence = round(float(conf.item()), 4)
 
         return {
@@ -244,6 +356,7 @@ _detector_cache: dict[str, "YawnDetector"] = {}
 
 
 def get_detector(model_variant: str = DEFAULT_MODEL_VARIANT) -> "YawnDetector":
-    if model_variant not in _detector_cache:
-        _detector_cache[model_variant] = YawnDetector(model_variant)
-    return _detector_cache[model_variant]
+    resolved_variant = resolve_model_variant(model_variant)
+    if resolved_variant not in _detector_cache:
+        _detector_cache[resolved_variant] = YawnDetector(resolved_variant)
+    return _detector_cache[resolved_variant]

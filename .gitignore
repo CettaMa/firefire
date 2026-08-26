@@ -8,10 +8,11 @@ tes-api.py
 tes-api.sh
 tes.ps1
 testing.mp4
-Dokumen UAT-RZA.docx
-Dokumen UAT-SMC.docx
+*.docx
 IDEA.md
 
+# APP
+*.msi
 
 # C extensions
 *.so

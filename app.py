@@ -2,14 +2,14 @@
 API server untuk TransTrack Yawn Detection.
 
 Membungkus YawnDetector (model.py) jadi HTTP API menggunakan FastAPI:
-- Mendukung 19 varian model TFLite (v1-v9, va-vj).
+- Mendukung 10 varian model TFLite (va-vj).
 - Mendukung pemrosesan Sinkron (langsung respon hasil, cocok untuk UI Tester).
 - Mendukung pemrosesan Asinkron dengan Redis Queue (RQ) saat webhook_url diberikan.
 
 Endpoints:
     GET  /                  -> info status API
     GET  /health            -> cek server hidup + device + koneksi redis + daftar model
-    GET  /models            -> info detail 19 model varian yang terintegrasi
+    GET  /models            -> info detail 10 model varian yang terintegrasi
     POST /predict           -> inferensi sinkron / antrean asinkron (jika ada webhook_url)
     POST /warmup            -> opsional: preload varian model ke memori
     GET  /tester            -> halaman landing page UI
@@ -43,7 +43,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 app = FastAPI(
     title="TransTrack Yawn Detection API",
     version="2.2.0",
-    description="API Deteksi Kantuk TransTrack dengan 19 Varian Model TFLite",
+    description="API Deteksi Kantuk TransTrack dengan 10 Varian Model TFLite (va-vj)",
 )
 
 app.add_middleware(
@@ -171,7 +171,7 @@ def health():
 
 @app.get("/models")
 def list_models():
-    """Mengembalikan daftar lengkap seluruh 19 model varian yang terintegrasi."""
+    """Mengembalikan daftar lengkap seluruh 10 model varian (va - vj) yang terintegrasi."""
     base_dir = os.path.dirname(os.path.abspath(__file__))
     models_info = []
     for key, path in MODEL_VARIANTS.items():

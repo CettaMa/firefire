@@ -2,10 +2,10 @@
 Model definition + inference logic untuk TransTrack Yawn/Fatigue Detection.
 
 Diadaptasi untuk format model TFLite (ai-edge-litert / tflite-runtime):
-- Mendukung 19 varian model:
-    - Numeric variants (v1, v2, v3, v4, v5, v6, v7, v8, v9)
-    - Alphabet variants (va, vb, vc, vd, ve, vf, vg, vh, vi, vj)
-- Mendukung dynamic scanning folder model_weights untuk auto-register model baru.
+- Mendukung 10 varian model (alphabet variants va - vj):
+    - va, vb, vc, vd, ve, vf, vg, vh, vi, vj
+- Mendukung dynamic scanning folder model_weights untuk auto-register model baru
+  (hanya varian va - vj yang terdaftar).
 - Logic face-extraction (DNN face detector -> crop -> resize 224x224) dipertahankan.
 - Dibungkus jadi class YawnDetector yang di-cache lewat get_detector() per-varian model.
 """
@@ -51,16 +51,6 @@ def _resolve_path(rel_or_abs_path: str) -> str:
 # Definisi Varian Model TFLite
 # ---------------------------------------------------------------------------
 STATIC_MODEL_VARIANTS = {
-    # Numeric variants (v1 - v9)
-    "v1": "model_weights/best_loss_combined_balanced_v1.tflite",
-    "v2": "model_weights/best_loss_combined_balanced_v2.tflite",
-    "v3": "model_weights/best_loss_combined_balanced_v3.tflite",
-    "v4": "model_weights/best_loss_combined_balanced_v4.tflite",
-    "v5": "model_weights/best_loss_combined_balanced_v5.tflite",
-    "v6": "model_weights/best_loss_combined_balanced_v6.tflite",
-    "v7": "model_weights/best_loss_combined_balanced_v7.tflite",
-    "v8": "model_weights/best_loss_combined_balanced_v8.tflite",
-    "v9": "model_weights/best_loss_combined_balanced_v9.tflite",
     # Alphabet variants (va - vj)
     "va": "model_weights/best_loss_combined_balanced_va.tflite",
     "vb": "model_weights/best_loss_combined_balanced_vb.tflite",
@@ -95,11 +85,20 @@ def discover_model_variants(weights_dir: str = "model_weights") -> dict[str, str
     return variants
 
 
-# Dictionary varian model aktif (gabungan static list dan dynamic scan folder)
-MODEL_VARIANTS: dict[str, str] = dict(STATIC_MODEL_VARIANTS)
+# Varian yang diizinkan: hanya alphabet variants (va - vj)
+SUPPORTED_VARIANTS = {f"v{l}" for l in "abcdefghij"}
+
+
+# Dictionary varian model aktif (gabungan static list dan dynamic scan folder,
+# difilter hanya menyertakan varian va - vj)
+MODEL_VARIANTS: dict[str, str] = {
+    key: path for key, path in STATIC_MODEL_VARIANTS.items() if key in SUPPORTED_VARIANTS
+}
 _discovered = discover_model_variants()
 if _discovered:
-    MODEL_VARIANTS.update(_discovered)
+    for key, path in _discovered.items():
+        if key in SUPPORTED_VARIANTS:
+            MODEL_VARIANTS[key] = path
 
 DEFAULT_MODEL_VARIANT = os.getenv("MODEL_VARIANT", "vj")
 
@@ -109,8 +108,8 @@ def resolve_model_variant(name: Optional[str]) -> str:
     Menormalkan input varian model dan mencocokkan alias ke key MODEL_VARIANTS yang valid.
     Contoh:
       - 'vj' -> 'vj'
-      - 'best_loss_combined_balanced_v1' -> 'v1'
-      - 'best_loss_combined_balanced_v1.tflite' -> 'v1'
+      - 'best_loss_combined_balanced_va' -> 'va'
+      - 'best_loss_combined_balanced_va.tflite' -> 'va'
       - None / '' -> DEFAULT_MODEL_VARIANT
     """
     if not name:

@@ -16,7 +16,7 @@ NUM_REQUESTS = 10
 
 # Kita pakai host.docker.internal agar container worker bisa mengirim POST 
 # kembali ke komputer host (laptop Anda) tempat script ini berjalan.
-WEBHOOK_PORT = 9090
+WEBHOOK_PORT = 2000
 WEBHOOK_URL = f"https://proposal-banister-privatize.ngrok-free.dev/webhook"  # Ganti dengan URL webhook Anda (misal pakai ngrok atau localtunnel)
 
 # Dummy video URL (pastikan URL ini valid & bisa didownload cepat untuk testing)
@@ -92,11 +92,11 @@ def main():
             "imei": f"IMEI-TEST-{i+1}",
             "time": "2023-10-10 10:00:00",
             "alarm": "yawn_detected",
-            "dms_video_url": TEST_VIDEO_URL,
-            "webhook_url": WEBHOOK_URL,
+            "dms_video_url": TEST_VIDEO_URL, # https://drive.google.com/uc?export=download&id=1NAjtG19jupCiHHqXOLvADWKWXDIiFxFm
+            "webhook_url": WEBHOOK_URL, # https://proposal-banister-privatize.ngrok-free.dev/webhook
             "model": "vj"
         }
-        
+         
         try:
             resp = requests.post(API_URL, json=payload, headers=headers)
             if resp.status_code == 200:

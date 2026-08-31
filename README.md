@@ -4,10 +4,9 @@ API Server berbasis FastAPI dan TensorFlow Lite (ai-edge-litert) untuk deteksi k
 
 ## 🚀 Fitur Utama
 - **Ringan & Cepat**: Menggunakan runtime TensorFlow Lite / ai-edge-litert yang dioptimasi khusus CPU.
-- **19 Multi-Model Variants**: Mendukung 19 varian bobot model:
-  - **Model Huruf (10 varian)**: `va`, `vb`, `vc`, `vd`, `ve`, `vf`, `vg`, `vh`, `vi`, `vj` (default: `vj`).
-  - **Model Angka (9 varian)**: `v1`, `v2`, `v3`, `v4`, `v5`, `v6`, `v7`, `v8`, `v9`.
-- **Dynamic Model Discovery**: Otomatis mendeteksi dan mendaftarkan file `.tflite` baru di folder `model_weights/`.
+- **10 Multi-Model Variants**: Mendukung 10 varian bobot model (huruf `va` - `vj`):
+  - `va`, `vb`, `vc`, `vd`, `ve`, `vf`, `vg`, `vh`, `vi`, `vj` (default: `vj`).
+- **Dynamic Model Discovery**: Otomatis mendeteksi dan mendaftarkan file `.tflite` baru di folder `model_weights/` (hanya varian `va` - `vj` yang terdaftar).
 - **Dual Processing Modes**:
   - **Mode Sinkron**: Mengembalikan hasil inferensi langsung (ideal untuk pengujian via UI `/tester`).
   - **Mode Asinkron (Redis Queue)**: Mengantrekan pekerjaan dan mengirimkan notifikasi hasil via `webhook_url`.
@@ -56,7 +55,7 @@ sudo docker logs -f transtrack-yawn-api
 | :--- | :--- | :--- |
 | `GET` | `/` | Informasi status layanan & daftar rute |
 | `GET` | `/health` / `/api/status` | Health check layanan, device, Redis & daftar model |
-| `GET` | `/models` | Daftar lengkap seluruh 19 varian model terintegrasi |
+| `GET` | `/models` | Daftar lengkap seluruh 10 varian model terintegrasi (va - vj) |
 | `GET` | `/tester` | Web UI Testing Platform untuk uji coba model |
 | `GET` | `/docs` | Interactive Swagger UI API Docs |
 | `POST` | `/predict` | Menjalankan deteksi kantuk (Sinkron / Asinkron via `webhook_url`) |

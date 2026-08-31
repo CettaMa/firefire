@@ -5,7 +5,7 @@ path video lokal), sesuai skema yang dipakai backend TransTrack:
     id, imei, time, alarm, dms_video_url
 
 Video akan didownload dulu dari dms_video_url, baru diproses.
-Kamu juga bisa pilih mau pakai model varian yang mana: vj, vc, atau vh
+Kamu juga bisa pilih mau pakai model varian yang mana: va sampai vj
 (lihat MODEL_VARIANTS di model.py).
 
 Cara pakai PALING GAMPANG — cukup jalankan tanpa argumen apa pun,
@@ -97,8 +97,7 @@ def prompt_request_interactively() -> tuple[dict, str]:
     model_variant = ""
     while not model_variant:
         print(f"\nPilihan varian model ({len(MODEL_VARIANTS)} varian):")
-        print("  - Huruf : va, vb, vc, vd, ve, vf, vg, vh, vi, vj")
-        print("  - Angka : v1, v2, v3, v4, v5, v6, v7, v8, v9")
+        print("  - va, vb, vc, vd, ve, vf, vg, vh, vi, vj")
         raw = input(f"model (default: {DEFAULT_MODEL_VARIANT}): ").strip()
         chosen = resolve_model_variant(raw) if raw else DEFAULT_MODEL_VARIANT
         if chosen in MODEL_VARIANTS:
